@@ -38,6 +38,14 @@ public:
         return *this;
     }
 
+    [[nodiscard]] std::size_t rows() const {
+        return rows_;
+    }
+
+    [[nodiscard]] std::size_t columns() const {
+        return cols_;
+    }
+
     [[nodiscard]] std::size_t idx(std::size_t row, std::size_t col) const {
         return row*cols_ + col;
     }

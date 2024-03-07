@@ -17,6 +17,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(measure_everything main.cpp
         vector2d.h
-        sparse-table.h)
+        sparse-table.h
+        vector_benches.cpp
+        range_sum_benchmarks.cpp
+        range_min_benchmarks.cpp)
 
 target_link_libraries(measure_everything benchmark::benchmark_main)
