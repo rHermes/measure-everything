@@ -3,10 +3,12 @@
 #include "sparse-table.h"
 #include <cinttypes>
 #include <random>
+#include <set>
 
 static void BM_rangeMin_query_SparseTable(benchmark::State& state) {
     const auto maxN = state.range(0);
 
+    std::multiset<int> wow;
     using T = std::int64_t;
 
     std::mt19937 gen(10);

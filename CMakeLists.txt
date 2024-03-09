@@ -9,9 +9,24 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/google/benchmark.git
         GIT_TAG 654d8d6cf368233018c3df2f84f1118603839ac5
 )
-FetchContent_MakeAvailable(benchmark)
 
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    #set(MI_TRACK_ASAN ON
+    set(MI_USE_CXX ON)
+    set(MI_TRACK_VALGRIND ON)
+    set(MI_DEBUG_FULL ON)
+endif()
+
+set(MI_OVERRIDE OFF)
+FetchContent_Declare(
+        mimalloc
+        GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
+        GIT_TAG dev
+        # GIT_TAG v2.1.2
+)
+
+FetchContent_MakeAvailable(benchmark mimalloc)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -20,6 +35,13 @@ add_executable(measure_everything main.cpp
         sparse-table.h
         vector_benches.cpp
         range_sum_benchmarks.cpp
-        range_min_benchmarks.cpp)
+        range_min_benchmarks.cpp
+        third_party/pcg_extras.hpp
+        third_party/pcg_random.hpp
+        third_party/pcg_uint128.hpp
+)
 
 target_link_libraries(measure_everything benchmark::benchmark_main)
+
+add_executable(mimalloc-stuff mimalloc-stuff/main.cpp)
+target_link_libraries(mimalloc-stuff mimalloc)
