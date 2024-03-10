@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(measure_everything)
+project(measure_everything LANGUAGES C CXX)
 
 include(FetchContent)
 
@@ -30,6 +30,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(benchmark mimalloc)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # I really don't know how to do this and I'm giving up. I hate cmake :(
 #add_library(pcg INTERFACE)

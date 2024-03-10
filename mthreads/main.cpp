@@ -54,7 +54,7 @@ void preFlight() {
 }
 
 template<typename T>
-std::size_t benchTrySemantics(T& fifo, const std::size_t N) {
+std::size_t benchTrySemantics(T& fifo, const std::size_t N, const int sendCpu, const int recvCpu) {
     std::latch all{3};
 
     std::thread sender([&all, &fifo, N]() {
@@ -73,7 +73,7 @@ std::size_t benchTrySemantics(T& fifo, const std::size_t N) {
     {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(17, &cpuset);
+        CPU_SET(sendCpu, &cpuset);
         const int rc = pthread_setaffinity_np(sender.native_handle(), sizeof(cpu_set_t), &cpuset);
         if (rc < 0) {
             std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
@@ -100,15 +100,15 @@ std::size_t benchTrySemantics(T& fifo, const std::size_t N) {
     {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(18, &cpuset);
+        CPU_SET(recvCpu, &cpuset);
         const int rc = pthread_setaffinity_np(receiver.native_handle(), sizeof(cpu_set_t), &cpuset);
         if (rc < 0) {
             std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
         }
     }
 
-    all.arrive_and_wait();
     const auto beginTS = std::chrono::steady_clock::now();
+    all.arrive_and_wait();
     // std::cout << "We started the sending!" << std::endl;
     sender.join();
     receiver.join();
@@ -126,15 +126,15 @@ std::size_t benchTrySemantics(T& fifo, const std::size_t N) {
 
     // std::cout << "The whole process took: " << diff << std::endl;
     auto thousands = std::make_unique<separate_thousands>();
-    auto prev = std::cout.imbue(std::locale(std::cout.getloc(), thousands.release()));
-    std::cout << "We sent " << N << " elements in " << diff << " making it: " << perSecond << " per second" << std::endl;
+    const auto prev = std::cout.imbue(std::locale(std::cout.getloc(), thousands.release()));
+    std::cout << "We sent " << N << " elements in " << std::setprecision(3) << diff << " making it: " << perSecond << " per second" << std::endl;
     std::cout.imbue(prev);
 
     return perSecond;
 }
 
 template<typename T>
-std::size_t benchWaitSemantics(T& fifo, const std::size_t N) {
+std::size_t benchWaitSemantics(T& fifo, const std::size_t N, const int sendCpu, const int recvCpu) {
     std::latch all{3};
 
     std::thread sender([&all, &fifo, N]() {
@@ -143,6 +143,16 @@ std::size_t benchWaitSemantics(T& fifo, const std::size_t N) {
         for (std::size_t i = 1; i <= N; i++)
             fifo.push(i);
     });
+
+    {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(sendCpu, &cpuset);
+        const int rc = pthread_setaffinity_np(sender.native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc < 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+    }
 
     std::thread receiver([&fifo, &all, N]() {
         all.arrive_and_wait();
@@ -155,8 +165,17 @@ std::size_t benchWaitSemantics(T& fifo, const std::size_t N) {
         }
     });
 
-    all.arrive_and_wait();
+    {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(recvCpu, &cpuset);
+        const int rc = pthread_setaffinity_np(receiver.native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc < 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+    }
     const auto beginTS = std::chrono::steady_clock::now();
+    all.arrive_and_wait();
     // std::cout << "We started the sending!" << std::endl;
     sender.join();
     receiver.join();
@@ -175,37 +194,60 @@ std::size_t benchWaitSemantics(T& fifo, const std::size_t N) {
     // std::cout << "The whole process took: " <<  << std::endl;
     auto thousands = std::make_unique<separate_thousands>();
     auto prev = std::cout.imbue(std::locale(std::cout.getloc(), thousands.release()));
-    std::cout << "We sent " << N << " elements in " << diff << " making it: " << perSecond << " per second" << std::endl;
+    std::cout << "We sent " << N << " elements in " << std::setprecision(3) << diff << " making it: " << perSecond << " per second" << std::endl;
+
     std::cout.imbue(prev);
 
     return perSecond;
 }
 
-void testMutex(const std::size_t N) {
-    MutexSPSCFifo<std::size_t, 512> fifoM;
-    std::cout << "Mutex: " << std::endl;
-    for (int i = 0; i < 4; i++) {
-        benchTrySemantics(fifoM, N);
-        // benchWaitSemantics(fifoM, N);
+
+
+template<typename T>
+void testFifo(const std::string& name, const std::size_t N) {
+    constexpr int times = 2;
+
+    T fifo;
+    /*
+    std::cout << name << ": try semantics: same core" << std::endl;
+    for (int i = 0; i < times; i++) {
+        benchTrySemantics(fifo, N, 11, 23);
+    }
+    std::cout << name << ": try semantics: same l3" << std::endl;
+    for (int i = 0; i < times; i++) {
+        benchTrySemantics(fifo, N, 22, 23);
+    }
+    std::cout << name << ": try semantics: differnt" << std::endl;
+    for (int i = 0; i < times; i++) {
+        benchTrySemantics(fifo, N, 20, 23);
+    }
+    */
+
+    std::cout << name << ": wait semantics: same core" << std::endl;
+    for (int i = 0; i < times; i++) {
+        benchWaitSemantics(fifo, N, 11, 23);
+    }
+    std::cout << name << ": wait semantics: same l3" << std::endl;
+    for (int i = 0; i < times; i++) {
+        benchWaitSemantics(fifo, N, 22, 23);
+    }
+    std::cout << name << ": wait semantics: differnt" << std::endl;
+    for (int i = 0; i < times; i++) {
+        benchWaitSemantics(fifo, N, 20, 23);
     }
 }
-
-void testAtomic(const std::size_t N) {
-    AtomicSPSCFifo<std::size_t, 512> fifoA;
-    std::cout << "Atomic: " << std::endl;
-    for (int i = 0; i < 4; i++) {
-        benchTrySemantics(fifoA, N);
-    }
-}
-
 
 int main(int, char**) {
     // preFlight<SPSCFifo<std::size_t, 512>();
-    constexpr std::size_t N = 30'000'000;
-    // constexpr std::size_t N = 1'000'000;
+    constexpr std::size_t N = 60'000'000;
+    // constexpr std::size_t N = 500'000;
 
-    testAtomic(N);
-    testMutex(N);
+    // testMutex(N);
+    // testFifo<MutexSPSCFifo<std::size_t, 512>>("mutex", N);
+    // std::cout << "\n\nSPACE\n\n" << std::endl;
+    testFifo<AtomicSPSCFifo<std::size_t, 2048>>("atomic", N);
+
+
 
     return 0;
 }
