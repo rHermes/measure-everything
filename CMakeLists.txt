@@ -58,6 +58,7 @@ add_executable(mthreads
         mthreads/main.cpp
         mthreads/MutexSPSC.h
         mthreads/AtomicSPSC.h
+        third_party/SPSCQueue.h
 )
 
 target_link_libraries(mthreads mimalloc)
@@ -72,6 +73,7 @@ else()
     target_compile_options(mimalloc-stuff PRIVATE -Wall -Wextra -Wpedantic -Werror -Wconversion -Wno-interference-size)
     target_compile_options(measure_everything PRIVATE -Wall -Wextra -Wpedantic -Werror -Wconversion -Wno-interference-size)
 
+    target_compile_options(mthreads PRIVATE -march=native)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
        # target_compile_options(mthreads PRIVATE -fsanitize=address)
         #target_link_options(mthreads PRIVATE -fsanitize=address)

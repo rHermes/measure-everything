@@ -20,14 +20,16 @@ private:
 
     using allocator_traits = typename std::allocator_traits<Alloc>::template rebind_traits<T>;
 
+    static constexpr std::size_t padding = (std::hardware_destructive_interference_size - 1) / sizeof(T) + 1;
+
     T* ring_{nullptr};
 
 #ifdef AT_USE_ALIGNED
     alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> pushCursor_{0};
-    std::size_t cachedPopCursor_{0};
+    alignas(std::hardware_destructive_interference_size) std::size_t cachedPopCursor_{0};
 
     alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> popCursor_{0};
-    std::size_t cachedPushCursor_{0};
+    alignas(std::hardware_destructive_interference_size) std::size_t cachedPushCursor_{0};
 
 #else
     std::atomic<std::size_t> pushCursor_{0};
