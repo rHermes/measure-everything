@@ -10,6 +10,8 @@
 // Taken from https://www.youtube.com/watch?v=K3P_Lmq6pw0
 template <typename T, std::size_t Capacity, typename Alloc = std::allocator<T>>
 class AtomicSPSCFifo final : private Alloc {
+public:
+    static constexpr std::size_t padding = (std::hardware_destructive_interference_size - 1) / sizeof(T) + 1;
 private:
     static_assert(Capacity && ((Capacity & (Capacity - 1)) == 0),
         "As we perform many modulo operations, it's important that a power of 2 is used, "
@@ -20,7 +22,6 @@ private:
 
     using allocator_traits = typename std::allocator_traits<Alloc>::template rebind_traits<T>;
 
-    static constexpr std::size_t padding = (std::hardware_destructive_interference_size - 1) / sizeof(T) + 1;
 
     T* ring_{nullptr};
 
@@ -51,19 +52,25 @@ private:
     }
 
     [[nodiscard]] constexpr std::size_t& element(const std::size_t cursor) {
-        return ring_[cursor % Capacity];
+        return ring_[(cursor % Capacity) + padding];
     }
 
 public:
     constexpr explicit AtomicSPSCFifo(const Alloc& alloc = Alloc{})
-        : Alloc{alloc}, ring_{allocator_traits::allocate(*this, Capacity)} {}
+        : Alloc{alloc}, ring_{allocator_traits::allocate(*this, Capacity + 2*padding)} {
+        static_assert(alignof(AtomicSPSCFifo<T, Capacity, Alloc>) == std::hardware_destructive_interference_size);
+        static_assert(sizeof(AtomicSPSCFifo<T, Capacity, Alloc>) >= 3 * std::hardware_destructive_interference_size);
+    }
 
     ~AtomicSPSCFifo() {
-        while (!empty()) {
-            allocator_traits::destroy(*this, &ring_[popCursor_ % Capacity]);
-            ++popCursor_;
+        cachedPopCursor_ = popCursor_.load(std::memory_order::acquire);
+        cachedPushCursor_ = pushCursor_.load(std::memory_order::acquire);
+        while (!empty(cachedPopCursor_, cachedPushCursor_)) {
+            allocator_traits::destroy(*this, &element(cachedPopCursor_));
+            cachedPopCursor_++;
         }
-        allocator_traits::deallocate(*this, ring_, Capacity);
+
+        allocator_traits::deallocate(*this, ring_, Capacity + 2*padding);
     }
 
     // Delete the copy constructor, we don't want that.
@@ -76,7 +83,7 @@ public:
 
     [[nodiscard]] constexpr auto size() const {
         // TODO(rHermes): Figure out how to give the size in an atomic manner.
-        return pushCursor_ - popCursor_;
+        return pushCursor_.load(std::memory_order::acquire) - popCursor_.load(std::memory_order::acquire);
     }
 
     [[nodiscard]] constexpr bool empty() const {
@@ -173,5 +180,6 @@ public:
         popCursor_.store(curPop+1, std::memory_order::release);
         return val;
     }
+
 
 };

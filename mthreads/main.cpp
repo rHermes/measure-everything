@@ -299,7 +299,7 @@ void testFifo(const std::string& name, const std::size_t N) {
         benchTrySemantics(fifo, N, 20, 23);
     }
     */
-/*
+
     std::cout << name << ": wait semantics: same core" << std::endl;
     for (int i = 0; i < times; i++) {
         benchWaitSemantics(fifo, N, 11, 23);
@@ -308,7 +308,7 @@ void testFifo(const std::string& name, const std::size_t N) {
     for (int i = 0; i < times; i++) {
         benchWaitSemantics(fifo, N, 22, 23);
     }
-    */
+
     std::cout << name << ": wait semantics: differnt" << std::endl;
     for (int i = 0; i < times; i++) {
         benchWaitSemantics(fifo, N, 20, 23);
@@ -319,7 +319,7 @@ void testFifo(const std::string& name, const std::size_t N) {
 void testBestFifo(const std::string& name, const std::size_t N) {
     constexpr int times = 2;
 
-    rigtorp::SPSCQueue<std::size_t> fifo(2048);
+    rigtorp::SPSCQueue<std::size_t> fifo(512);
 
     /*
     std::cout << name << ": try semantics: same core" << std::endl;
@@ -335,7 +335,7 @@ void testBestFifo(const std::string& name, const std::size_t N) {
         benchTrySemantics(fifo, N, 20, 23);
     }
     */
-/*
+
     std::cout << name << ": wait semantics: same core" << std::endl;
     for (int i = 0; i < times; i++) {
         benchWaitSemantics(fifo, N, 11, 23);
@@ -344,7 +344,7 @@ void testBestFifo(const std::string& name, const std::size_t N) {
     for (int i = 0; i < times; i++) {
         benchWaitSemantics(fifo, N, 22, 23);
     }
-    */
+
     std::cout << name << ": wait semantics: differnt" << std::endl;
     for (int i = 0; i < times; i++) {
         benchWaitSemantics(fifo, N, 20, 23);
@@ -356,11 +356,12 @@ int main(int, char**) {
     constexpr std::size_t N = 100'000'000;
     // constexpr std::size_t N = 500'000;
 
+    std::cout << "The padding on our atomic is: " << AtomicSPSCFifo<std::size_t, 2048>::padding << std::endl;
     // testMutex(N);
     // testFifo<MutexSPSCFifo<std::size_t, 512>>("mutex", N);
     // std::cout << "\n\nSPACE\n\n" << std::endl;
-    testFifo<AtomicSPSCFifo<std::size_t, 2048>>("atomic", N);
-    // testBestFifo("best", N);
+    testFifo<AtomicSPSCFifo<std::size_t, 512>>("atomic", N);
+    testBestFifo("best", N);
 
 
 
