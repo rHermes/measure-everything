@@ -3,7 +3,8 @@
 #include <latch>
 #include <thread>
 
-#include "SPSC.h"
+#include "AtomicSPSC.h"
+#include "MutexSPSC.h"
 
 struct separate_thousands : std::numpunct<char> {
     char_type do_thousands_sep() const override { return ','; }  // separate with commas
@@ -58,6 +59,7 @@ std::size_t benchTrySemantics(T& fifo, const std::size_t N) {
 
     std::thread sender([&all, &fifo, N]() {
         all.arrive_and_wait();
+        // std::cout << "Sender was started on thread: " << sched_getcpu() << std::endl;
 
         std::size_t i = 1;
         while (i <= N) {
@@ -68,8 +70,19 @@ std::size_t benchTrySemantics(T& fifo, const std::size_t N) {
 
     });
 
+    {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(17, &cpuset);
+        const int rc = pthread_setaffinity_np(sender.native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc < 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+    }
+
     std::thread receiver([&fifo, &all, N]() {
         all.arrive_and_wait();
+        // std::cout << "Receiver was started on thread: " << sched_getcpu() << std::endl;
 
         std::size_t i = 1;
         while (i <= N) {
@@ -83,6 +96,16 @@ std::size_t benchTrySemantics(T& fifo, const std::size_t N) {
             }
         }
     });
+
+    {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(18, &cpuset);
+        const int rc = pthread_setaffinity_np(receiver.native_handle(), sizeof(cpu_set_t), &cpuset);
+        if (rc < 0) {
+            std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+        }
+    }
 
     all.arrive_and_wait();
     const auto beginTS = std::chrono::steady_clock::now();
@@ -101,10 +124,10 @@ std::size_t benchTrySemantics(T& fifo, const std::size_t N) {
     const auto perSecond = static_cast<std::size_t>(static_cast<double>(N) / diff.count());
 
 
-    std::cout << "The whole process took: " << diff << std::endl;
+    // std::cout << "The whole process took: " << diff << std::endl;
     auto thousands = std::make_unique<separate_thousands>();
     auto prev = std::cout.imbue(std::locale(std::cout.getloc(), thousands.release()));
-    std::cout << "We sent " << N << " elements making it: " << perSecond << " per second" << std::endl;
+    std::cout << "We sent " << N << " elements in " << diff << " making it: " << perSecond << " per second" << std::endl;
     std::cout.imbue(prev);
 
     return perSecond;
@@ -149,23 +172,40 @@ std::size_t benchWaitSemantics(T& fifo, const std::size_t N) {
     const auto perSecond = static_cast<std::size_t>(static_cast<double>(N) / diff.count());
 
 
-    std::cout << "The whole process took: " << diff << std::endl;
+    // std::cout << "The whole process took: " <<  << std::endl;
     auto thousands = std::make_unique<separate_thousands>();
     auto prev = std::cout.imbue(std::locale(std::cout.getloc(), thousands.release()));
-    std::cout << "We sent " << N << " elements making it: " << perSecond << " per second" << std::endl;
+    std::cout << "We sent " << N << " elements in " << diff << " making it: " << perSecond << " per second" << std::endl;
     std::cout.imbue(prev);
 
     return perSecond;
 }
 
+void testMutex(const std::size_t N) {
+    MutexSPSCFifo<std::size_t, 512> fifoM;
+    std::cout << "Mutex: " << std::endl;
+    for (int i = 0; i < 4; i++) {
+        benchTrySemantics(fifoM, N);
+        // benchWaitSemantics(fifoM, N);
+    }
+}
 
-int main() {
+void testAtomic(const std::size_t N) {
+    AtomicSPSCFifo<std::size_t, 512> fifoA;
+    std::cout << "Atomic: " << std::endl;
+    for (int i = 0; i < 4; i++) {
+        benchTrySemantics(fifoA, N);
+    }
+}
+
+
+int main(int, char**) {
     // preFlight<SPSCFifo<std::size_t, 512>();
-    SPSCFifo<std::size_t, 512> fifo;
     constexpr std::size_t N = 30'000'000;
+    // constexpr std::size_t N = 1'000'000;
 
-    benchTrySemantics(fifo, N);
-    benchWaitSemantics(fifo, N);
+    testAtomic(N);
+    testMutex(N);
 
     return 0;
 }

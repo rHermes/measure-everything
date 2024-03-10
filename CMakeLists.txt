@@ -55,7 +55,8 @@ target_link_libraries(mimalloc-stuff mimalloc benchmark::benchmark_main)
 add_executable(mthreads
         third_party/pcg_extras.hpp third_party/pcg_uint128.hpp third_party/pcg_random.hpp
         mthreads/main.cpp
-        mthreads/SPSC.h
+        mthreads/MutexSPSC.h
+        mthreads/AtomicSPSC.h
 )
 
 target_link_libraries(mthreads mimalloc)
