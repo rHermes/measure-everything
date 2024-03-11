@@ -5,7 +5,7 @@
 #include <random>
 
 static void BM_rangeSum_init_PSA(benchmark::State& state) {
-    const auto maxN = state.range(0);
+    const auto maxN = static_cast<std::size_t>(state.range(0));
 
     using T = std::int64_t;
 
@@ -38,7 +38,7 @@ static void BM_rangeSum_init_PSA(benchmark::State& state) {
 }
 
 static void BM_rangeSum_queryAll_PSA(benchmark::State& state) {
-    const auto maxN = state.range(0);
+    const auto maxN = static_cast<std::size_t>(state.range(0));
 
     using T = std::int64_t;
 
@@ -71,7 +71,7 @@ static void BM_rangeSum_queryAll_PSA(benchmark::State& state) {
 }
 
 static void BM_rangeSum_queryCacheMiss_PSA(benchmark::State& state) {
-    const auto maxN = state.range(0);
+    const auto maxN = static_cast<std::size_t>(state.range(0));
 
     using T = std::int64_t;
 
@@ -110,7 +110,7 @@ static void BM_rangeSum_queryCacheMiss_PSA(benchmark::State& state) {
 }
 
 static void BM_rangeSum_querySmall_PSA(benchmark::State& state) {
-    const auto maxN = state.range(0);
+    const auto maxN = static_cast<std::size_t>(state.range(0));
 
     using T = std::int64_t;
 
@@ -147,7 +147,7 @@ static void BM_rangeSum_querySmall_PSA(benchmark::State& state) {
 
 
 static void BM_rangeSum_init_SparseTable(benchmark::State& state) {
-    const auto maxN = state.range(0);
+    const auto maxN = static_cast<std::size_t>(state.range(0));
 
     using T = std::int64_t;
 
@@ -181,7 +181,7 @@ static void BM_rangeSum_init_SparseTable(benchmark::State& state) {
 }
 
 static void BM_rangeSum_queryAll_SparseTable(benchmark::State& state) {
-    const auto maxN = state.range(0);
+    const auto maxN = static_cast<std::size_t>(state.range(0));
 
     using T = std::int64_t;
 
@@ -216,7 +216,7 @@ static void BM_rangeSum_queryAll_SparseTable(benchmark::State& state) {
 }
 
 static void BM_rangeSum_querySmall_SparseTable(benchmark::State& state) {
-    const auto maxN = state.range(0);
+    const auto maxN = static_cast<std::size_t>(state.range(0));
 
     using T = std::int64_t;
 

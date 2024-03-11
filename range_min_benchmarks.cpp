@@ -6,7 +6,7 @@
 #include <set>
 
 static void BM_rangeMin_query_SparseTable(benchmark::State& state) {
-    const auto maxN = state.range(0);
+    const auto maxN = static_cast<std::size_t>(state.range(0));
 
     std::multiset<int> wow;
     using T = std::int64_t;
