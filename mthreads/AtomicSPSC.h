@@ -7,11 +7,21 @@
 
 #define AT_USE_ALIGNED
 
+
 // Taken from https://www.youtube.com/watch?v=K3P_Lmq6pw0
 template <typename T, std::size_t Capacity, typename Alloc = std::allocator<T>>
 class AtomicSPSCFifo final : private Alloc {
 public:
-    static constexpr std::size_t padding = (std::hardware_destructive_interference_size - 1) / sizeof(T) + 1;
+#ifdef __cpp_lib_hardware_interference_size
+    static constexpr auto constructiveInterference =  std::hardware_constructive_interference_size;
+    static constexpr auto destructiveInterference = std::hardware_destructive_interference_size;
+#else
+    // 64 bytes on x86-64 │ L1_CACHE_BYTES │ L1_CACHE_SHIFT │ __cacheline_aligned │ ...
+    static constexpr std::size_t constructiveInterference =  64;
+    static constexpr std::size_t destructiveInterference = 64;
+#endif
+
+    static constexpr std::size_t padding = (destructiveInterference - 1) / sizeof(T) + 1;
 private:
     static_assert(Capacity && ((Capacity & (Capacity - 1)) == 0),
         "As we perform many modulo operations, it's important that a power of 2 is used, "
@@ -26,11 +36,11 @@ private:
     T* ring_{nullptr};
 
 #ifdef AT_USE_ALIGNED
-    alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> pushCursor_{0};
-    alignas(std::hardware_destructive_interference_size) std::size_t cachedPopCursor_{0};
+    alignas(destructiveInterference) std::atomic<std::size_t> pushCursor_{0};
+    alignas(destructiveInterference) std::size_t cachedPopCursor_{0};
 
-    alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> popCursor_{0};
-    alignas(std::hardware_destructive_interference_size) std::size_t cachedPushCursor_{0};
+    alignas(destructiveInterference) std::atomic<std::size_t> popCursor_{0};
+    alignas(destructiveInterference) std::size_t cachedPushCursor_{0};
 
 #else
     std::atomic<std::size_t> pushCursor_{0};
@@ -58,8 +68,8 @@ private:
 public:
     constexpr explicit AtomicSPSCFifo(const Alloc& alloc = Alloc{})
         : Alloc{alloc}, ring_{allocator_traits::allocate(*this, Capacity + 2*padding)} {
-        static_assert(alignof(AtomicSPSCFifo<T, Capacity, Alloc>) == std::hardware_destructive_interference_size);
-        static_assert(sizeof(AtomicSPSCFifo<T, Capacity, Alloc>) >= 3 * std::hardware_destructive_interference_size);
+        static_assert(alignof(AtomicSPSCFifo<T, Capacity, Alloc>) == destructiveInterference);
+        static_assert(sizeof(AtomicSPSCFifo<T, Capacity, Alloc>) >= 3 * destructiveInterference);
     }
 
     ~AtomicSPSCFifo() {

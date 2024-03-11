@@ -56,22 +56,22 @@ public:
         return Capacity;
     }
 
-    [[nodiscard]] constexpr auto size() const {
+    [[nodiscard]] auto size() const {
         std::scoped_lock lk(mtx_);
         return noLockSize();
     }
 
-    [[nodiscard]] constexpr bool empty() const {
+    [[nodiscard]] bool empty() const {
         std::scoped_lock lk(mtx_);
         return noLockEmpty();
     }
 
-    [[nodiscard]] constexpr bool full() const {
+    [[nodiscard]] bool full() const {
         std::scoped_lock lk(mtx_);
         return noLockFull();
     }
 
-    constexpr void push(const T& value) {
+    void push(const T& value) {
         std::unique_lock lk(mtx_);
         cv_.wait(lk, [this]{ return !this->noLockFull(); });
 
@@ -82,7 +82,7 @@ public:
         cv_.notify_one();
     }
 
-    constexpr T pop() {
+    T pop() {
         std::unique_lock lk(mtx_);
         cv_.wait(lk, [this]{ return !this->noLockEmpty(); });
 
@@ -95,7 +95,7 @@ public:
         return val;
     }
 
-    [[nodiscard]] constexpr bool try_push(const T& value) {
+    [[nodiscard]] bool try_push(const T& value) {
         std::scoped_lock lk(mtx_);
         if (noLockFull())
             return false;
@@ -106,7 +106,7 @@ public:
         return true;
     }
 
-    [[nodiscard]] constexpr std::optional<T> try_pop() {
+    [[nodiscard]] std::optional<T> try_pop() {
         std::scoped_lock lk(mtx_);
         if (noLockEmpty())
             return std::nullopt;
